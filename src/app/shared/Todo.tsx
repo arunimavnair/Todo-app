@@ -19,6 +19,10 @@ export default function Todo() {
   const inputBox = useRef<HTMLInputElement>(null);
   const [taskCount, setTaskCount] = useState(0);
 
+  // Loading & error states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     getTasks();
   }, []);
@@ -28,18 +32,20 @@ export default function Todo() {
   }, [tasks]);
 
   async function getTasks() {
-    const url = "https://api.freeapi.app/api/v1/todos";
-    const options = {
-      method: "GET",
-      headers: { accept: "application/json" },
-    };
-
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(url, options);
+      const response = await fetch("https://api.freeapi.app/api/v1/todos", {
+        method: "GET",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to fetch tasks");
       const result = await response.json();
       setTasks(result.data);
     } catch (error) {
-      console.error("Fetch tasks error:", error);
+      setError((error as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -48,56 +54,64 @@ export default function Todo() {
     const task = inputBox.current.value.trim();
     if (!task) return;
 
-    const url = "https://api.freeapi.app/api/v1/todos/";
-    const options = {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        title: task,
-        description: "Task created via Todo App",
-      }),
-    };
-
+    setLoading(true);
+    setError(null);
     try {
-      await fetch(url, options);
+      const response = await fetch("https://api.freeapi.app/api/v1/todos/", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: task,
+          description: "Task created via Todo App",
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to add task");
       inputBox.current.value = "";
-      getTasks();
+      await getTasks();
     } catch (error) {
-      console.error("Add task error:", error);
+      setError((error as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function deleteTask(id: string) {
-    const url = `https://api.freeapi.app/api/v1/todos/${id}`;
-    const options = {
-      method: "DELETE",
-      headers: { accept: "application/json" },
-    };
-
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(url, options);
-      const result = await res.json();
-      console.log("Deleted:", result);
-      getTasks();
+      const res = await fetch(`https://api.freeapi.app/api/v1/todos/${id}`, {
+        method: "DELETE",
+        headers: { accept: "application/json" },
+      });
+      if (!res.ok) throw new Error("Failed to delete task");
+      await getTasks();
     } catch (err) {
-      console.error("Delete error:", err);
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function markComplete(id: string) {
-    const url = `https://api.freeapi.app/api/v1/todos/toggle/status/${id}`;
-    const options = { method: "PATCH", headers: { accept: "application/json" } };
-
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(url, options);
-      const data = await response.json();
-      console.log(data);
-      getTasks();
+      const response = await fetch(
+        `https://api.freeapi.app/api/v1/todos/toggle/status/${id}`,
+        {
+          method: "PATCH",
+          headers: { accept: "application/json" },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to toggle task status");
+      await getTasks();
     } catch (error) {
-      console.error(error);
+      setError((error as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -111,16 +125,26 @@ export default function Todo() {
         Total Tasks: <span className="font-bold">{taskCount}</span>
       </p>
 
+      {/* Show loading or error */}
+      {loading && (
+        <p className="text-center text-blue-600 font-semibold">Loading...</p>
+      )}
+      {error && (
+        <p className="text-center text-red-600 font-semibold">Error: {error}</p>
+      )}
+
       <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
         <input
           className="p-3 w-full md:w-1/2 rounded-lg shadow-md border border-blue-300 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
           type="text"
           placeholder="Enter task"
           ref={inputBox}
+          disabled={loading}
         />
         <button
-          className="bg-blue-600 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 shadow-md"
+          className="bg-blue-600 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={addTask}
+          disabled={loading}
         >
           Add Task
         </button>
@@ -134,7 +158,9 @@ export default function Todo() {
                 <ClipboardDocumentListIcon className="h-6 w-6 text-blue-500" />
                 <span
                   className={`text-lg font-medium ${
-                    task.complete ? "line-through text-gray-400" : "text-gray-800"
+                    task.complete
+                      ? "line-through text-gray-400"
+                      : "text-gray-800"
                   }`}
                 >
                   {task.title}
