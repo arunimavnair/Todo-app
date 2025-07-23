@@ -7,22 +7,26 @@ import {
 } from "@heroicons/react/24/solid";
 import { useEffect, useRef, useState } from "react";
 
-export default function Todo() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const inputBox = useRef<any>(null);
-  const [taskCount, setTaskCount] = useState(0);
+interface Task {
+  _id: string;
+  title: string;
+  description?: string;
+  complete: boolean;
+}
 
+export default function Todo() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const inputBox = useRef<HTMLInputElement>(null);
+  const [taskCount, setTaskCount] = useState(0);
 
   useEffect(() => {
     getTasks();
   }, []);
 
-  
   useEffect(() => {
     setTaskCount(tasks.length);
   }, [tasks]);
 
-  
   async function getTasks() {
     const url = "https://api.freeapi.app/api/v1/todos";
     const options = {
@@ -39,8 +43,8 @@ export default function Todo() {
     }
   }
 
-  
   async function addTask(): Promise<void> {
+    if (!inputBox.current) return;
     const task = inputBox.current.value.trim();
     if (!task) return;
 
@@ -60,13 +64,12 @@ export default function Todo() {
     try {
       await fetch(url, options);
       inputBox.current.value = "";
-      getTasks(); 
+      getTasks();
     } catch (error) {
       console.error("Add task error:", error);
     }
   }
 
-  
   async function deleteTask(id: string) {
     const url = `https://api.freeapi.app/api/v1/todos/${id}`;
     const options = {
@@ -78,26 +81,24 @@ export default function Todo() {
       const res = await fetch(url, options);
       const result = await res.json();
       console.log("Deleted:", result);
-      getTasks(); 
+      getTasks();
     } catch (err) {
       console.error("Delete error:", err);
     }
   }
 
-  
   async function markComplete(id: string) {
-   
+    const url = `https://api.freeapi.app/api/v1/todos/toggle/status/${id}`;
+    const options = { method: "PATCH", headers: { accept: "application/json" } };
 
-const url = 'https://api.freeapi.app/api/v1/todos/toggle/status/648e0c0722147847623e0a00';
-const options = {method: 'PATCH', headers: {accept: 'application/json'}};
-
-try {
-  const response = await fetch(url, options);
-  const data = await response.json();
-  console.log(data);
-} catch (error) {
-  console.error(error);
-}
+    try {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      console.log(data);
+      getTasks();
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   return (
@@ -112,7 +113,7 @@ try {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
         <input
-          className="p-3 w-full md:w-1/2 rounded-lg shadow-md border border-blue-300 text-white-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+          className="p-3 w-full md:w-1/2 rounded-lg shadow-md border border-blue-300 text-black focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
           type="text"
           placeholder="Enter task"
           ref={inputBox}
@@ -145,7 +146,7 @@ try {
                     task.complete ? "text-green-500" : "text-gray-400"
                   } hover:text-green-700`}
                   title="Mark complete"
-                  onClick={() => markComplete(task.title)}
+                  onClick={() => markComplete(task._id)}
                 />
                 <TrashIcon
                   className="h-6 w-6 text-red-500 cursor-pointer hover:text-red-700"
